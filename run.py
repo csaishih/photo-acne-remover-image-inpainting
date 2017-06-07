@@ -10,7 +10,6 @@ import cv2 as cv
 import argparse, os, sys
 import Queue
 from patch import *
-from patchdb import *
 
 class Inpainting:
 
@@ -31,7 +30,7 @@ class Inpainting:
         self.boundaryIterator = iter(boundaries)
         self.confidence = np.zeros_like(self.filled, dtype=np.uint8)
         self.confidence[self.filled == 255] = 1
-        self.patchDB = PatchDB(self.inpainted, self.patchRadius, filled=self.filled)
+        self.initializeDatabase()
 
     def inpaint(self):
         try:
@@ -55,14 +54,15 @@ class Inpainting:
             psi = self.deltaOmega.get()
 
             # 2b) Find the exemplar that minimizes the SSD
-            bestRow, bestCol = self.patchDB.match(psi.getWindow(psi.getImage()),filled=psi.getWindow(psi.getFilled()))
-            psi_match = Patch((bestRow, bestCol), self.patchRadius, self.inpainted, self.confidence, self.filled, self.fillFront)
+            bestRow, bestCol = self.match(psi)
+            psiMatch = Patch((bestRow, bestCol), self.patchRadius, self.inpainted, self.confidence, self.filled, self.fillFront)
+            # self.drawPatch(psi, psiMatch)
 
             # 2c) Copy image data from the matching patch
-            psi.setWindow(psi_match.getWindow(psi_match.getImage()), self.inpainted, psi.valid(psi_match))
+            psi.setWindow(psiMatch.getWindow(psiMatch.getImage()), self.inpainted, psi.valid(psiMatch))
 
             # 3) Update confidence
-            psi.setWindow(psi.valid(psi_match) * psi.getC(), self.confidence, psi.valid(psi_match))
+            psi.setWindow(psi.valid(psiMatch) * psi.getC(), self.confidence, psi.valid(psiMatch))
 
             # Update set of unfilled pixels
             psi.setWindow(255 * np.ones_like(psi.getWindow(psi.getFilled())), self.filled, np.ones((psi.getSize(), psi.getSize())))
@@ -77,32 +77,85 @@ class Inpainting:
             for rowcol in newFillFrontCoords:
                 row, col = rowcol
                 self.fillFront[row, col] = 255
-                new_psi = Patch((row, col), self.patchRadius, self.inpainted, self.confidence, self.filled, self.fillFront)
-                self.deltaOmega.put(new_psi)
+                newPsi = Patch((row, col), self.patchRadius, self.inpainted, self.confidence, self.filled, self.fillFront)
+                self.deltaOmega.put(newPsi)
 
             # Recompute confidence and priority of patches on fill front
-            temp_queue = Queue.PriorityQueue()
+            tempQueue = Queue.PriorityQueue()
             while (not self.deltaOmega.empty()):
                 try:
-                    temp_psi = self.deltaOmega.get()
-                    row, col = temp_psi.getCoords()
+                    tempPsi = self.deltaOmega.get()
+                    row, col = tempPsi.getCoords()
                     if self.filled[row, col]:
                         pass
                     else:
-                        temp_psi.setImage(self.inpainted)
-                        temp_psi.setConfidence(self.confidence)
-                        temp_psi.setFilled(self.filled)
-                        temp_psi.setFillFront(self.fillFront)
-                        temp_psi.computePriority()
-                        temp_queue.put(temp_psi)
+                        tempPsi.setImage(self.inpainted)
+                        tempPsi.setConfidence(self.confidence)
+                        tempPsi.setFilled(self.filled)
+                        tempPsi.setFillFront(self.fillFront)
+                        tempPsi.computePriority()
+                        tempQueue.put(tempPsi)
                 except Queue.Empty:
                     break
-            self.deltaOmega = temp_queue
+            self.deltaOmega = tempQueue
             self.iteration += 1
             print("Done iteration %d" % (self.iteration))
         print("Done")
         return False
 
+    def initializeDatabase(self):
+        assert len(self.inpainted.shape) == 3
+        assert self.inpainted.shape[0] == self.filled.shape[0]
+        assert self.inpainted.shape[1] == self.filled.shape[1]
+
+        patchSize = self.patchRadius * 2 + 1
+        kernel = np.ones((patchSize, patchSize))
+        channels = self.inpainted.shape[2]
+
+        validRows = self.inpainted.shape[0] - 2 * self.patchRadius
+        validCols = self.inpainted.shape[1] - 2 * self.patchRadius
+
+        v = self.filled.copy()
+        v[v == 255] = 1
+        validFilled = cv.erode(v, kernel, iterations=1)
+        validBorder = np.zeros_like(validFilled)
+        validBorder[self.patchRadius:self.patchRadius+validRows, self.patchRadius:self.patchRadius+validCols] = 1
+        valid = validBorder * validFilled
+        validIndices = np.argwhere(valid == 1)
+        self.patchIndices = validIndices
+
+        patchDB = np.zeros((len(validIndices), (np.square(patchSize) * channels)), dtype=np.uint8)
+        for i in range(len(validIndices)):
+            row, col = validIndices[i]
+            patchDB[i,:] = self.inpainted[row-self.patchRadius:row+self.patchRadius+1,col-self.patchRadius:col+self.patchRadius+1,:].flatten()
+        self.patchDatabase = patchDB
+
+    def match(self, patch):
+        windowVector = patch.getWindow(patch.getImage()).flatten()[np.newaxis,:]
+        t = self.patchDatabase.copy()
+        t[:,windowVector[0] == 0] = 0
+        ssd = t - 1.*windowVector
+        sq = np.square(ssd)
+        su = np.sum(sq, axis=1)
+        m = np.argmin(su)
+        return self.patchIndices[m]
+
+    # def match(self, patch):
+    #     window = patch.getWindow(patch.getImage()).astype(np.float32)
+    #     row, col = self.patchIndices[0]
+    #     ref = self.patchDatabase[row-self.patchRadius:row+self.patchRadius+1,col-self.patchRadius:col+self.patchRadius+1,:].astype(np.float32)
+    #     ref[window == 0] = 0
+    #     smallest = np.sum(np.square(window - ref))
+    #     smallest_index = 0
+    #     for i in range(1, len(self.patchIndices)):
+    #         row, col = self.patchIndices[i]
+    #         ref = self.patchDatabase[row-self.patchRadius:row+self.patchRadius+1,col-self.patchRadius:col+self.patchRadius+1,:].astype(np.float32)
+    #         ref[window == 0] = 0
+    #         ssd = np.sum(np.square(window - ref))
+    #         if ssd < smallest:
+    #             smallest = ssd
+    #             smallest_index = i
+    #     return self.patchIndices[smallest_index]
 
     def getInpainted(self):
         return self.inpainted
@@ -174,7 +227,6 @@ def main(args):
     while not done:
         done = inpainting.inpaint()
     debug(inpainting.getInpainted())
-
     writeImage(args.o, inpainting.getInpainted())
 
 if __name__ == '__main__':

@@ -20,31 +20,29 @@ class Patch:
         self.computePriority()
 
     def computeConfidence(self):
-        patch_confidence = self.getWindow(self.confidence)
-        patch_filled = self.getWindow(self.filled)
-        patch_filtered = patch_confidence[patch_filled == 255]
-        if patch_filtered.size == 0:
+        patchConfidence = self.getWindow(self.confidence)
+        patchFilled = self.getWindow(self.filled)
+        patchFiltered = patchConfidence[patchFilled == 255]
+        if patchFiltered.size == 0:
             self.C = 0
         else:
-            self.C = np.sum(patch_filtered) / (1.0 * patch_filtered.size)
+            self.C = np.sum(patchFiltered) / (1.0 * patchFiltered.size)
 
     def computeGradient(self):
-        patch_gray = cv.cvtColor(self.getWindow(self.image), cv.COLOR_BGR2GRAY)
-        patch_filled = self.getWindow(self.filled)
+        patchGray = cv.cvtColor(self.getWindow(self.image), cv.COLOR_BGR2GRAY)
 
-        Dy = cv.Sobel(patch_gray, cv.CV_32F, 0, 1, ksize=-1)[self.radius][self.radius]
-        Dx = cv.Sobel(patch_gray, cv.CV_32F, 1, 0, ksize=-1)[self.radius][self.radius]
+        Dy = cv.Sobel(patchGray, cv.CV_32F, 0, 1, ksize=-1)[self.radius][self.radius]
+        Dx = cv.Sobel(patchGray, cv.CV_32F, 1, 0, ksize=-1)[self.radius][self.radius]
 
         Gy = -Dx
         Gx = Dy
         self.gradient = [Gy, Gx]
 
     def computeNormal(self):
-        patch_filter = self.getWindow(self.filled)
-        patch_fillFront = self.getWindow(self.fillFront)
+        patchFillFront = self.getWindow(self.fillFront)
 
-        Dy = cv.Sobel(patch_fillFront, cv.CV_32F, 0, 1, ksize=-1)[self.radius][self.radius]
-        Dx = cv.Sobel(patch_fillFront, cv.CV_32F, 1, 0, ksize=-1)[self.radius][self.radius]
+        Dy = cv.Sobel(patchFillFront, cv.CV_32F, 0, 1, ksize=-1)[self.radius][self.radius]
+        Dx = cv.Sobel(patchFillFront, cv.CV_32F, 1, 0, ksize=-1)[self.radius][self.radius]
 
         mag = np.sqrt(np.square(Dy) + np.square(Dx))
         if mag != 0:
