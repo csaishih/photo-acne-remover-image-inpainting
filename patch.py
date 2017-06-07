@@ -1,3 +1,6 @@
+# Shihan Ai
+# Github: g3aishih
+
 import numpy as np
 import cv2 as cv
 
