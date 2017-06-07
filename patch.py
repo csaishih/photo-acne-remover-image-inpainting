@@ -20,6 +20,7 @@ class Patch:
         self.computePriority()
 
     def computeConfidence(self):
+        # Compute the confidence term
         patchConfidence = self.getWindow(self.confidence)
         patchFilled = self.getWindow(self.filled)
         patchFiltered = patchConfidence[patchFilled == 255]
@@ -29,20 +30,22 @@ class Patch:
             self.C = np.sum(patchFiltered) / (1.0 * patchFiltered.size)
 
     def computeGradient(self):
+        # Computes the magnitude and direction of the isophote at the patch center
         patchGray = cv.cvtColor(self.getWindow(self.image), cv.COLOR_BGR2GRAY)
 
-        Dy = cv.Sobel(patchGray, cv.CV_32F, 0, 1, ksize=-1)[self.radius][self.radius]
-        Dx = cv.Sobel(patchGray, cv.CV_32F, 1, 0, ksize=-1)[self.radius][self.radius]
+        Dy = cv.Scharr(patchGray, cv.CV_64F, 0, 1)[self.radius][self.radius]
+        Dx = cv.Scharr(patchGray, cv.CV_64F, 1, 0)[self.radius][self.radius]
 
         Gy = -Dx
         Gx = Dy
         self.gradient = [Gy, Gx]
 
     def computeNormal(self):
+        # Computes the unit normal to the fill front
         patchFillFront = self.getWindow(self.fillFront)
 
-        Dy = cv.Sobel(patchFillFront, cv.CV_32F, 0, 1, ksize=-1)[self.radius][self.radius]
-        Dx = cv.Sobel(patchFillFront, cv.CV_32F, 1, 0, ksize=-1)[self.radius][self.radius]
+        Dy = cv.Scharr(patchFillFront, cv.CV_64F, 0, 1)[self.radius][self.radius]
+        Dx = cv.Scharr(patchFillFront, cv.CV_64F, 1, 0)[self.radius][self.radius]
 
         mag = np.sqrt(np.square(Dy) + np.square(Dx))
         if mag != 0:
@@ -53,16 +56,19 @@ class Patch:
         self.normal = [Ny, Nx]
 
     def computeData(self):
+        # Computes the data term as described in the paper
         self.computeNormal()
         self.computeGradient()
         self.D = np.abs(np.dot(self.normal, self.gradient)) / self.alpha
 
     def computePriority(self):
+        # Computes the priority as described in the paper
         self.computeConfidence()
         self.computeData()
         self.P = -1.0 * self.C * self.D
 
     def getWindow(self, data):
+        # Returns the image data from data belonging to this patch
         if len(data.shape) == 2:
             image = data[:,:,None]
         else:
@@ -94,17 +100,18 @@ class Patch:
         window[dRow : dRow + nRow, dCol : dCol + nCol, :] = image[sRow : sRow + nRow, sCol : sCol + nCol, :]
         return np.squeeze(window)
 
-    def setWindow(self, source_data, destination_data, condition):
+    def setWindow(self, source_data, destination_location, condition):
+        # Copies the source_data within this patch into destination_location
         row, col = self.coords
 
         if len(source_data.shape) == 2:
             source = source_data[:,:,None]
         else:
             source = source_data
-        if len(destination_data.shape) == 2:
-            destination = destination_data[:,:,None]
+        if len(destination_location.shape) == 2:
+            destination = destination_location[:,:,None]
         else:
-            destination = destination_data
+            destination = destination_location
 
         if row - self.radius < 0:
             sRow = self.radius - row
@@ -134,6 +141,29 @@ class Patch:
             cPixels = condition[sRow : sRow + nRow, sCol : sCol + nCol]
             dPixels[cPixels > 0] = sPixels[cPixels > 0]
             destination[dRow : dRow + nRow, dCol : dCol + nCol, c] = dPixels
+
+    def valid(self, other):
+        return np.logical_and(self.getWindow(self.filled) == 0, other.getWindow(other.filled) > 0)
+
+    def outerBorderCoords(self, image):
+        # Taken from A2 CSC320 Winter 2017
+        wo = self.radius + 1
+        row, col = self.coords
+        rows = np.arange(row-wo,row+wo+1)
+        rowplus = np.full_like(rows,row+wo)
+        rowminus = np.full_like(rows,row-wo)
+        cols = np.arange(col-wo,col+wo)
+        colplus = np.full_like(cols,col+wo)
+        colminus = np.full_like(cols,col-wo)
+        borderCoords =  (zip(rows,colplus) +
+                         zip(rowplus,cols) +
+                         zip(rows,colminus) +
+                         zip(rowminus,cols))
+        withinLimits = lambda x: ((x[0]<image.shape[0]) and
+                                (x[0]>=0) and
+                                (x[1]<image.shape[1]) and
+                                (x[1]>=0))
+        return filter(withinLimits, borderCoords)
 
     def getCoords(self):
         return self.coords
@@ -176,27 +206,3 @@ class Patch:
 
     def __repr__(self):
         return "Coords: %s\nPriority: %s\nConfidence: %s\nData: %s\nNormal: %s\nGradient: %s\n" % (str(self.coords), str(self.P), str(self.C), str(self.D), str(self.normal), str(self.gradient))
-
-    def valid(self, other):
-        return np.logical_and(self.getWindow(self.filled) == 0, other.getWindow(other.filled) > 0)
-
-    def outerBorderCoords(self, image):
-        wo = self.radius + 1
-        row, col = self.coords
-        rows = np.arange(row-wo,row+wo+1)
-        rowplus = np.full_like(rows,row+wo)
-        rowminus = np.full_like(rows,row-wo)
-        # we don't want the same coords appearing twice so the
-        # horizontal outer boundary contains one less pixel
-        cols = np.arange(col-wo,col+wo)
-        colplus = np.full_like(cols,col+wo)
-        colminus = np.full_like(cols,col-wo)
-        borderCoords =  (zip(rows,colplus) +
-                         zip(rowplus,cols) +
-                         zip(rows,colminus) +
-                         zip(rowminus,cols))
-        withinLimits = lambda x: ((x[0]<image.shape[0]) and
-                                (x[0]>=0) and
-                                (x[1]<image.shape[1]) and
-                                (x[1]>=0))
-        return filter(withinLimits, borderCoords)
