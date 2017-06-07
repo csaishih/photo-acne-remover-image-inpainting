@@ -1,9 +1,5 @@
-# identify the fill front
-# computer priorities
-# find patch with maximum priority
-# find the patch with the highest similarity
-# copy data from one patch to the other
-# update confidence term
+# Shihan Ai
+# Github: g3aishih
 
 import numpy as np
 import cv2 as cv
@@ -33,15 +29,17 @@ class Inpainting:
         self.initializeDatabase()
 
     def inpaint(self):
+        # Implements steps 1 - 3 from TABLE 1 in the paper
         try:
             # Initalize fill front
             self.boundary = self.boundaryIterator.next()
             self.fillFront = np.zeros_like(self.filled, dtype=np.uint8)
             self.fillFront = cv.drawContours(self.fillFront, self.boundary, -1, 255)
 
-            # Initalize fill front patches
+            # Step 1a) Initalize fill front patches
             self.deltaOmega = Queue.PriorityQueue()
             for coords in self.boundary:
+                # Step 1b) Priorities are computed upon Patch instantiation
                 p = Patch((coords[0][1], coords[0][0]), self.patchRadius, self.inpainted, self.confidence, self.filled, self.fillFront)
                 self.deltaOmega.put(p)
         except StopIteration:
@@ -50,18 +48,18 @@ class Inpainting:
         # Get patch with highest priority and match it
         while (not self.deltaOmega.empty()):
 
-            # 2a) Find the patch with the maximum priority
+            # Step 2a) Find the patch with the maximum priority
             psi = self.deltaOmega.get()
 
-            # 2b) Find the exemplar that minimizes the SSD
+            # Step 2b) Find the exemplar that minimizes the SSD
             bestRow, bestCol = self.match(psi)
             psiMatch = Patch((bestRow, bestCol), self.patchRadius, self.inpainted, self.confidence, self.filled, self.fillFront)
             # self.drawPatch(psi, psiMatch)
 
-            # 2c) Copy image data from the matching patch
+            # Step 2c) Copy image data from the matching patch
             psi.setWindow(psiMatch.getWindow(psiMatch.getImage()), self.inpainted, psi.valid(psiMatch))
 
-            # 3) Update confidence
+            # Step 3) Update confidence
             psi.setWindow(psi.valid(psiMatch) * psi.getC(), self.confidence, psi.valid(psiMatch))
 
             # Update set of unfilled pixels
@@ -104,6 +102,9 @@ class Inpainting:
         return False
 
     def initializeDatabase(self):
+        # Initialize a database of patches in the source image
+        # The patches must be entirely filled
+        # We look in this database to find matching patches for patches that require filling
         assert len(self.inpainted.shape) == 3
         assert self.inpainted.shape[0] == self.filled.shape[0]
         assert self.inpainted.shape[1] == self.filled.shape[1]
@@ -131,31 +132,13 @@ class Inpainting:
         self.patchDatabase = patchDB
 
     def match(self, patch):
+        # Returns the indices of the closest patch match in the patch database
         windowVector = patch.getWindow(patch.getImage()).flatten()[np.newaxis,:]
-        t = self.patchDatabase.copy()
-        t[:,windowVector[0] == 0] = 0
-        ssd = t - 1.*windowVector
-        sq = np.square(ssd)
-        su = np.sum(sq, axis=1)
-        m = np.argmin(su)
-        return self.patchIndices[m]
-
-    # def match(self, patch):
-    #     window = patch.getWindow(patch.getImage()).astype(np.float32)
-    #     row, col = self.patchIndices[0]
-    #     ref = self.patchDatabase[row-self.patchRadius:row+self.patchRadius+1,col-self.patchRadius:col+self.patchRadius+1,:].astype(np.float32)
-    #     ref[window == 0] = 0
-    #     smallest = np.sum(np.square(window - ref))
-    #     smallest_index = 0
-    #     for i in range(1, len(self.patchIndices)):
-    #         row, col = self.patchIndices[i]
-    #         ref = self.patchDatabase[row-self.patchRadius:row+self.patchRadius+1,col-self.patchRadius:col+self.patchRadius+1,:].astype(np.float32)
-    #         ref[window == 0] = 0
-    #         ssd = np.sum(np.square(window - ref))
-    #         if ssd < smallest:
-    #             smallest = ssd
-    #             smallest_index = i
-    #     return self.patchIndices[smallest_index]
+        database = self.patchDatabase.copy()
+        database[:,windowVector[0] == 0] = 0
+        ssd = np.sum(np.square(database - 1.0 * windowVector), axis=1)
+        argmin = np.argmin(ssd)
+        return self.patchIndices[argmin]
 
     def getInpainted(self):
         return self.inpainted
@@ -170,6 +153,7 @@ class Inpainting:
         return self.confidence
 
     def drawPatch(self, patch, other):
+        # Draws a patch on the image in red and draws another patch on the image in green
         row, col = patch.getCoords()
         radius = patch.getRadius()
         image = self.inpainted.copy()
@@ -212,6 +196,7 @@ def writeImage(fileName, image):
     return success
 
 def debug(image):
+    # Display the image
     cv.imshow('image', image)
     cv.waitKey(0)
     cv.destroyAllWindows()
