@@ -1,6 +1,4 @@
 # Image Inpainting
-
-## Description
 Image inpainting can remove objects in a photo and replace them with believable textures
 
 ###### Dependencies
