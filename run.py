@@ -6,6 +6,7 @@ import cv2 as cv
 import argparse, os, sys
 import Queue
 from patch import *
+from util import *
 
 class Inpainting:
 
@@ -54,11 +55,9 @@ class Inpainting:
             # Step 2b) Find the exemplar that minimizes the SSD
             bestRow, bestCol = self.match(psi)
             psiMatch = Patch((bestRow, bestCol), self.patchRadius, self.inpainted, self.confidence, self.filled, self.fillFront)
-            self.drawPatch(psi, psiMatch, self.iteration)
 
             # Step 2c) Copy image data from the matching patch
             psi.setWindow(psiMatch.getWindow(psiMatch.getImage()), self.inpainted, psi.valid(psiMatch))
-            # writeImage(str(self.iteration) + "-iteration-c.png", self.inpainted) # Used to create an animation gif
 
             # Step 3) Update confidence
             psi.setWindow(psi.valid(psiMatch) * psi.getC(), self.confidence, psi.valid(psiMatch))
@@ -171,37 +170,6 @@ class Inpainting:
             image[orow - oradius, ocol - oradius : ocol + oradius, 1] = 255
             image[orow + oradius, ocol - oradius : ocol + oradius, 1] = 255
         writeImage(str(i) + "-iteration-b.png", image)
-
-
-def readSource(fileName):
-    try:
-        source = cv.imread(fileName, 1)
-    except:
-        print("[ERROR] Source must be a color uint8 image")
-        return None
-    return source
-
-def readMask(fileName):
-    try:
-        mask = cv.imread(fileName, 0)
-    except:
-        print("[ERROR] Alpha must be a grayscale uint8 image")
-        return None
-    return mask
-
-def writeImage(fileName, image):
-    try:
-        cv.imwrite(fileName, image)
-        success = True
-    except:
-        success = False
-    return success
-
-def debug(image):
-    # Display the image
-    cv.imshow('image', image)
-    cv.waitKey(0)
-    cv.destroyAllWindows()
 
 def main(args):
     source = readSource(args.s)
