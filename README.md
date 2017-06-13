@@ -1,8 +1,8 @@
 # Image Inpainting
 
 ###### Dependencies
-..*[NumPy](http://www.numpy.org/)
-..*[OpenCV][http://docs.opencv.org/3.0-beta/doc/py_tutorials/py_tutorials.html]
+..* [NumPy](http://www.numpy.org/)
+..* [OpenCV][http://docs.opencv.org/3.0-beta/doc/py_tutorials/py_tutorials.html]
 
 ###### Basic usage
 `python run.py -s [path to source image] -m [path to mask image] -o [path to output image] -r [patch radius]`
