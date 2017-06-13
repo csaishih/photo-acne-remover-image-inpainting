@@ -98,7 +98,6 @@ class Inpainting:
             self.deltaOmega = tempQueue
             self.iteration += 1
             print("Done iteration %d" % (self.iteration))
-        print("Done")
         return False
 
     def initializeDatabase(self):

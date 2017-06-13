@@ -1,6 +1,7 @@
 # Image Inpainting
 Image inpainting can remove objects in a photo and replace them with believable textures
 
+## Running the script
 ###### Dependencies
   * [NumPy](http://www.numpy.org/)
   * [OpenCV](http://docs.opencv.org/3.0-beta/doc/py_tutorials/py_tutorials.html)
