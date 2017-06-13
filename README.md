@@ -1,7 +1,7 @@
-# Image transformations
+# Image Inpainting
 
 ###### Basic usage
-```python run.py -s [path to source image] -o [path to output image] -x [width of output image] -y [height of output image]```
+`python run.py -s [path to source image] -m [path to mask image] -o [path to output image] -r [patch radius]`
 
 ###### Example usage
-```python run.py -s test_images/test1/source.jpg -o test_images/test1/out.png -x 100 -y 100```
+`python run.py -s test_images/test1/source.png -m test_images/test1/mask.png -o test_images/out.png -r 4`
