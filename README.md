@@ -15,7 +15,7 @@
 ![alt text](https://github.com/g3aishih/image-inpainting/blob/master/test_images/test2/source.png "Test 2 source")
 
 ###### Test 2 mask
-![alt text](https://github.com/g3aishih/image-inpainting/blob/master/test_images/test2/maskpng "Test 2 mask")
+![alt text](https://github.com/g3aishih/image-inpainting/blob/master/test_images/test2/mask.png "Test 2 mask")
 
 ###### Test 2 result with r = 4
 ![alt text](https://github.com/g3aishih/image-inpainting/blob/master/test_images/test2/out.png "Test 2 result")
