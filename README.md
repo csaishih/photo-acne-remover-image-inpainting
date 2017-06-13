@@ -1,5 +1,8 @@
 # Image Inpainting
 
+## Description
+Image inpainting can remove objects in a photo and replace them with believable textures
+
 ###### Dependencies
   * [NumPy](http://www.numpy.org/)
   * [OpenCV](http://docs.opencv.org/3.0-beta/doc/py_tutorials/py_tutorials.html)
@@ -10,7 +13,7 @@
 ###### Example usage
 `python run.py -s test_images/test2/source.png -m test_images/test2/mask.png -o test_images/test2/out.png -r 4`
 
-# Results
+## Results
 ###### Test 2 source
 ![alt text](https://github.com/g3aishih/image-inpainting/blob/master/test_images/test2/source.png "Test 2 source")
 
@@ -19,3 +22,13 @@
 
 ###### Test 2 result with r = 4
 ![alt text](https://github.com/g3aishih/image-inpainting/blob/master/test_images/test2/out.png "Test 2 result")
+
+
+###### Test 5 source
+![alt text](https://github.com/g3aishih/image-inpainting/blob/master/test_images/test5/source.png "Test 5 source")
+
+###### Test 5 mask
+![alt text](https://github.com/g3aishih/image-inpainting/blob/master/test_images/test5/mask.png "Test 5 mask")
+
+###### Test 5 result with r = 4
+![alt text](https://github.com/g3aishih/image-inpainting/blob/master/test_images/test5/out.png "Test 5 result")
