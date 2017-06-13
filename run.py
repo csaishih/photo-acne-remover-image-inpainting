@@ -54,10 +54,11 @@ class Inpainting:
             # Step 2b) Find the exemplar that minimizes the SSD
             bestRow, bestCol = self.match(psi)
             psiMatch = Patch((bestRow, bestCol), self.patchRadius, self.inpainted, self.confidence, self.filled, self.fillFront)
-            # self.drawPatch(psi, psiMatch)
+            self.drawPatch(psi, psiMatch, self.iteration)
 
             # Step 2c) Copy image data from the matching patch
             psi.setWindow(psiMatch.getWindow(psiMatch.getImage()), self.inpainted, psi.valid(psiMatch))
+            # writeImage(str(self.iteration) + "-iteration-c.png", self.inpainted) # Used to create an animation gif
 
             # Step 3) Update confidence
             psi.setWindow(psi.valid(psiMatch) * psi.getC(), self.confidence, psi.valid(psiMatch))
@@ -152,7 +153,7 @@ class Inpainting:
     def getConfidence(self):
         return self.confidence
 
-    def drawPatch(self, patch, other):
+    def drawPatch(self, patch, other, i):
         # Draws a patch on the image in red and draws another patch on the image in green
         row, col = patch.getCoords()
         radius = patch.getRadius()
@@ -161,6 +162,7 @@ class Inpainting:
         image[row - radius: row + radius, col + radius, 2] = 255
         image[row - radius, col - radius : col + radius, 2] = 255
         image[row + radius, col - radius : col + radius, 2] = 255
+        writeImage(str(i) + "-iteration-a.png", image)
         if other:
             orow, ocol = other.getCoords()
             oradius = other.getRadius()
@@ -168,7 +170,7 @@ class Inpainting:
             image[orow - oradius: orow + oradius, ocol + oradius, 1] = 255
             image[orow - oradius, ocol - oradius : ocol + oradius, 1] = 255
             image[orow + oradius, ocol - oradius : ocol + oradius, 1] = 255
-        debug(image)
+        writeImage(str(i) + "-iteration-b.png", image)
 
 
 def readSource(fileName):
@@ -222,7 +224,7 @@ if __name__ == '__main__':
                         required=True)
     parser.add_argument('-m',
                         type=str,
-                        help='Path to alpha image',
+                        help='Path to mask image',
                         required=True)
     parser.add_argument('-o',
                         type=str,
