@@ -1,6 +1,8 @@
 # Image Inpainting
 Image inpainting can remove objects in a photo and replace them with believable textures.  
 The research behind the algorithm can be found [here](../master/criminisi_tip2004.pdf)
+Visualization of the algorithm  
+![alt text](https://github.com/g3aishih/image-inpainting/blob/master/algo_animation "Inpainting visualization")
 
 ## Running the script
 ###### Dependencies
