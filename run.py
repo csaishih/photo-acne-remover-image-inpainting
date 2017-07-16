@@ -23,8 +23,8 @@ class Inpainting:
         self.inpainted = self.source.copy()
         for i in range(0,3):
             self.inpainted[:,:,i] *= (self.filled > 0)
-        _, boundaries, _ = cv.findContours(self.unfilled, cv.RETR_LIST, cv.CHAIN_APPROX_NONE)
-        self.boundaryIterator = iter(boundaries)
+        boundaries = cv.findContours(self.unfilled, cv.RETR_LIST, cv.CHAIN_APPROX_NONE)
+        self.boundaryIterator = iter(boundaries[0])
         self.confidence = np.zeros_like(self.filled, dtype=np.uint8)
         self.confidence[self.filled == 255] = 1
         self.initializeDatabase()
@@ -35,7 +35,7 @@ class Inpainting:
             # Initalize fill front
             self.boundary = self.boundaryIterator.next()
             self.fillFront = np.zeros_like(self.filled, dtype=np.uint8)
-            self.fillFront = cv.drawContours(self.fillFront, self.boundary, -1, 255)
+            cv.drawContours(self.fillFront, self.boundary, -1, 255)
 
             # Step 1a) Initalize fill front patches
             self.deltaOmega = Queue.PriorityQueue()
